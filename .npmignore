@@ -1,0 +1,16 @@
+# Ignore dev files & test scripts
+src/
+tsconfig.json
+.gitignore
+.npmignore
+
+# Ignore local dev files
+node_modules/
+dist/*.map
+db/
+
+# Ignore editor configs & temp files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

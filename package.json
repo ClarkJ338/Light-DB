@@ -1,0 +1,30 @@
+{
+  "name": "light-db",
+  "version": "1.0.0",
+  "description": "Fully async JSON-based lightweight database",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node dist/test-async.js",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TrainerSky/Light-DB.git"
+  },
+  "keywords": [
+    "json",
+    "database",
+    "lightdb",
+    "async-db",
+    "lightweight-db"
+  ],
+  "author": "ClarkJ <clarkj338@gmail.com>",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^18.0.0"
+  }
+}
