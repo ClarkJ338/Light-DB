@@ -1,5 +1,5 @@
 {
-  "name": "light-db",
+  "name": "@trainersky/light-db",
   "version": "1.0.0",
   "description": "Fully async JSON-based lightweight database",
   "main": "dist/index.js",
