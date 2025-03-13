@@ -20,7 +20,7 @@ It provides a simple interface for storing, retrieving, and managing structured 
 ## Installation
 
 ```sh
-npm install light-db
+npm install @trainersky/light-db
 ```
 
 ---
