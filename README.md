@@ -58,6 +58,8 @@ run();
 | `get(key, default?)` | Retrieves data from a key |
 | `has(key)`          | Checks if a key exists |
 | `delete(key)`       | Removes a key |
+| `update(key, value)`| Uodates data at
+given key and value |
 
 ### **Math Operations**
 | Method               | Description |
