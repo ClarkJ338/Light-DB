@@ -31,7 +31,7 @@ npm install @trainersky/light-db
 ```ts
 import lightdb from "@trainersky/light-db";
 
-const db = trainerdb("myDatabase", "./data");
+const db = lightdb("myDatabase", "./data");
 
 async function run() {
   await db.set("user", { name: "Ash", age: 10 });
