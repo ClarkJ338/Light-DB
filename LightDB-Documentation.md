@@ -1,6 +1,6 @@
 # 📖 Light-DB - Full Documentation
 
-This document provides a detailed explanation of every method in TrainerDB's Storage class, including real-world scenarios from basic to advanced usage.
+This document provides a detailed explanation of every method in Light-DB's Storage class, including real-world scenarios from basic to advanced usage.
 
 ## 📦 Table of Contents
 
