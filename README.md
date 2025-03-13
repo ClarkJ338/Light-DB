@@ -29,7 +29,7 @@ npm install @trainersky/light-db
 
 ### **Basic Example**
 ```ts
-import lightdb from "light-db";
+import lightdb from "@trainersky/light-db";
 
 const db = trainerdb("myDatabase", "./data");
 
