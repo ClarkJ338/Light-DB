@@ -1,4 +1,4 @@
-import lightdb from "./storage";
+import lightdb from "./index";
 import CacheManager from "./cacheManager";
 
 async function testSmallScale() {
