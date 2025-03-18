@@ -1,10 +1,10 @@
-import Storage from "./storage";
+import lightdb from "./storage";
 import CacheManager from "./cacheManager";
 
 async function testSmallScale() {
   console.log("\n===== SMALL SCALE TEST =====");
 
-  const storage = new Storage("./testdb", "small", { maxSize: 1024 * 1024 });
+  const storage = new lightdb("./testdb", "small", { maxSize: 1024 * 1024 });
   await storage.set("user.name", "Alice");
   await storage.set("user.age", 25);
 
@@ -21,7 +21,7 @@ async function testSmallScale() {
 async function testMediumScale() {
   console.log("\n===== MEDIUM SCALE TEST =====");
 
-  const storage = new Storage("./testdb", "medium", {
+  const storage = new lightdb("./testdb", "medium", {
     maxSize: 5 * 1024 * 1024, 
     evictionStrategy: "time-based",
     cleanupFrequency: "manual",
@@ -53,7 +53,7 @@ async function testMediumScale() {
 async function testLargeScale() {
   console.log("\n===== LARGE SCALE TEST =====");
 
-  const storage = new Storage("./testdb", "large", {
+  const storage = new lightdb("./testdb", "large", {
     maxSize: 50 * 1024 * 1024, 
     evictionStrategy: "LRU",
     memoryMode: "high-performance",
