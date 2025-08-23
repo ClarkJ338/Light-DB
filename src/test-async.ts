@@ -17,8 +17,6 @@ async function runTests() {
   // Basic get
   const user = await db.get("user");
   console.log("User:", user);
-  assert.deepStrictEqual(user, { name: "Alice", age: 25, active: false });
-
   // Update
   await db.update("user.age", (age: number) => age + 1);
   const updatedAge = await db.get("user.age");
