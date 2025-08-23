@@ -1,5 +1,16 @@
 # Light-DB
 
+## ⚡ Quick Reference
+
+| Category  | Methods |
+|-----------|---------|
+| **CRUD**  | `get`, `set`, `has`, `delete`, `update`, `toggle` |
+| **Math**  | `plus`, `minus`, `multiple`, `divide` |
+| **Array** | `append`, `unique`, `sort`, `reverse`, `find`, `filter`, `slice` |
+| **Retrieval** | `keys`, `values` |
+| **Utility** | `saveNow`, `enableCache`, `disableCache`, `getCacheInfo` |
+
+
 **Light-DB** is a **fully async**, lightweight JSON-based database for Node.js.  
 It provides a simple interface for storing, retrieving, and managing structured data in JSON format.
 
@@ -29,7 +40,28 @@ npm install @trainersky/light-db
 
 ### **Basic Example**
 ```ts
-import lightdb from "@trainersky/light-db";
+import { createDB } from "@trainersky/light-db";
+
+// Default cache (2MB)
+const db = createDB("./data", "myDatabase");
+
+async function run() {
+  await db.set("user", { name: "Ash", age: 10 });
+  console.log(await db.get("user")); // { name: "Ash", age: 10 }
+
+  await db.plus("user.age", 1);
+  console.log(await db.get("user.age")); // 11
+
+  await db.toggle("user.active");
+  console.log(await db.get("user.active")); // true
+
+  // Force save immediately (skips batching)
+  await db.saveNow();
+}
+
+run();
+```
+
 
 const db = lightdb("myDatabase", "./data");
 
@@ -86,6 +118,26 @@ run();
 | `slice(key, start, end?)` | Returns a portion of an array |
 
 ### **Retrieving Keys & Values**
+### **Cache Configuration**
+| Option         | Description |
+|
+### **Utility**
+| Method       | Description |
+|--------------|-------------|
+| `saveNow()`  | Immediately flushes any pending writes to disk (skips batching) |
+----------------|-------------|
+| `cacheLimit`   | Maximum cache size in bytes (default: 2MB). Set `0` to disable cache. |
+
+```ts
+import { createDB } from "@trainersky/light-db";
+
+// Custom cache size (5MB)
+const db = createDB("./data", "logs", { cacheLimit: 5 * 1024 * 1024 });
+
+// Disable cache (always disk mode)
+const bigdb = createDB("./data", "bigdata", { cacheLimit: 0 });
+```
+
 | Method               | Description |
 |----------------------|-------------|
 | `keys()`            | Returns all stored keys |
