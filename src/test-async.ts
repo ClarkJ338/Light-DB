@@ -7,10 +7,12 @@ async function runTests() {
   const db = createDB("./data", "test");
 
   // 🔄 Reset DB keys
-  await db.set("user", { name: "Alice", age: 25, active: false });
-  await db.set("score", 10);
-  await db.set("items", [1, 2, 2, 3]);
-
+  // 🔄 Reset DB keys
+await db.set("user", { name: "Alice", age: 25, active: false });
+await db.set("score", 10);
+await db.set("items", [1, 2, 2, 3]);
+await db.saveNow();   // <-- ensure all writes are persisted
+  
   // Basic get
   const user = await db.get("user");
   console.log("User:", user);
