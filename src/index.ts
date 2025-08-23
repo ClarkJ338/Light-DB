@@ -9,5 +9,6 @@ export function createDB(dir: string, dbName: string, options: DBOptions = {}) {
   const cacheLimit = options.cacheLimit ?? 2 * 1024 * 1024; // 2MB default
   return new Storage(dir, dbName, cacheLimit);
 }
+export default createDB;
 
 export type { DBOptions };
