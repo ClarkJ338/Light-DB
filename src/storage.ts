@@ -65,6 +65,29 @@ class Storage {
     await fs.writeFile(this.file, JSON.stringify(data, null, 2), "utf-8");
   }
 
+  /** Get info about cache state */
+  public getCacheInfo() {
+    return {
+      enabled: this.cache !== null,
+      maxSize: this.cacheLimit,
+      currentSize: this.cache
+        ? Buffer.byteLength(JSON.stringify(this.cache), "utf-8")
+        : 0,
+    };
+  }
+
+  /** Enable in-memory cache (optionally with new size limit) */
+  public async enableCache(limit?: number) {
+    if (limit !== undefined) this.cacheLimit = limit;
+    await this.refreshCache();
+  }
+
+  /** Disable in-memory cache completely */
+  public disableCache() {
+    this.cache = null;
+    this.cacheLimit = 0;
+  }
+
   private deepGet(obj: Record<string, any>, path: string, defaultValue: any) {
     return path.split(".").reduce((o, k) => (o && o[k] !== undefined ? o[k] : defaultValue), obj);
   }
@@ -278,18 +301,7 @@ class Storage {
     if (!Array.isArray(existing)) throw new Error("Target is not an array.");
     return existing.slice(start, end);
   }
-
-    /** Enable in-memory cache (optionally with new size limit) */
-  public async enableCache(limit?: number) {
-    if (limit !== undefined) this.cacheLimit = limit;
-    await this.refreshCache();
-  }
-
-  /** Disable in-memory cache completely */
-  public disableCache() {
-    this.cache = null;
-    this.cacheLimit = 0;
-  }
 }
 
-export default Storage;                                                       
+export default Storage;
+          
