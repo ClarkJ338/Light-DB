@@ -6,6 +6,8 @@ class Storage {
   private dir: string;
   private file: string;
   private cache: Record<string, any> | null = null;
+  private batchTimer: NodeJS.Timeout | null = null;
+  private isBatching = false;
 
   constructor(dirPath: string, dbName: string) {
     this.dbName = dbName;
@@ -25,7 +27,13 @@ class Storage {
   }
 
   private async refreshCache() {
-    this.cache = await this.readFile();
+    const data = await this.readFile();
+    const size = Buffer.byteLength(JSON.stringify(data), "utf-8");
+    if (size <= 2 * 1024 * 1024) {
+      this.cache = data; // cache in memory
+    } else {
+      this.cache = null; // too big, use disk mode
+    }
   }
 
   private async readFile(): Promise<Record<string, any>> {
@@ -38,9 +46,15 @@ class Storage {
   }
 
   private async writeFile() {
-    if (this.cache) {
-      await fs.writeFile(this.file, JSON.stringify(this.cache, null, 2), "utf-8");
-    }
+    if (this.isBatching) return;
+    this.isBatching = true;
+    if (this.batchTimer) clearTimeout(this.batchTimer);
+
+    this.batchTimer = setTimeout(async () => {
+      const data = this.cache ?? (await this.readFile());
+      await fs.writeFile(this.file, JSON.stringify(data, null, 2), "utf-8");
+      this.isBatching = false;
+    }, 1000);
   }
 
   private deepGet(obj: Record<string, any>, path: string, defaultValue: any) {
@@ -60,13 +74,15 @@ class Storage {
   }
 
   async get(key: string, defaultValue: any = null): Promise<any> {
-    if (!this.cache) await this.refreshCache();
-    return this.deepGet(this.cache!, key, defaultValue);
+    if (this.cache) return this.deepGet(this.cache, key, defaultValue);
+    const data = await this.readFile();
+    return this.deepGet(data, key, defaultValue);
   }
 
   async has(key: string): Promise<boolean> {
-    if (!this.cache) await this.refreshCache();
-    return this.deepGet(this.cache!, key, undefined) !== undefined;
+    if (this.cache) return this.deepGet(this.cache, key, undefined) !== undefined;
+    const data = await this.readFile();
+    return this.deepGet(data, key, undefined) !== undefined;
   }
 
   async set(
@@ -74,126 +90,136 @@ class Storage {
     value: any,
     options: { merge?: boolean; append?: boolean; operation?: string } = {}
   ) {
-    if (!this.cache) await this.refreshCache();
-    const existingValue = this.deepGet(this.cache!, key, undefined);
+    const data = this.cache ?? (await this.readFile());
+    const existingValue = this.deepGet(data, key, undefined);
 
     if (typeof existingValue === "number" && options.operation) {
       switch (options.operation) {
-        case "+": this.deepSet(this.cache!, key, existingValue + value); break;
-        case "-": this.deepSet(this.cache!, key, existingValue - value); break;
-        case "*": this.deepSet(this.cache!, key, existingValue * value); break;
-        case "/": if (value === 0) throw new Error("Division by zero"); this.deepSet(this.cache!, key, existingValue / value); break;
-        case "%": if (value === 0) throw new Error("Modulo by zero"); this.deepSet(this.cache!, key, existingValue % value); break;
-        case "**": this.deepSet(this.cache!, key, existingValue ** value); break;
+        case "+": this.deepSet(data, key, existingValue + value); break;
+        case "-": this.deepSet(data, key, existingValue - value); break;
+        case "*": this.deepSet(data, key, existingValue * value); break;
+        case "/": if (value === 0) throw new Error("Division by zero"); this.deepSet(data, key, existingValue / value); break;
+        case "%": if (value === 0) throw new Error("Modulo by zero"); this.deepSet(data, key, existingValue % value); break;
+        case "**": this.deepSet(data, key, existingValue ** value); break;
         default: throw new Error(`Invalid operation "${options.operation}"`);
       }
     } else if (options.append && Array.isArray(existingValue) && Array.isArray(value)) {
-      this.deepSet(this.cache!, key, [...existingValue, ...value]);
+      this.deepSet(data, key, [...existingValue, ...value]);
     } else if (options.merge && typeof existingValue === "object" && typeof value === "object") {
-      this.deepSet(this.cache!, key, { ...existingValue, ...value });
+      this.deepSet(data, key, { ...existingValue, ...value });
     } else {
-      this.deepSet(this.cache!, key, value);
+      this.deepSet(data, key, value);
     }
 
+    if (this.cache) this.cache = data;
     await this.writeFile();
   }
 
   async update(key: string, updater: (value: any) => any): Promise<boolean> {
-    if (!this.cache) await this.refreshCache();
-    const existingValue = this.deepGet(this.cache!, key, undefined);
+    const data = this.cache ?? (await this.readFile());
+    const existingValue = this.deepGet(data, key, undefined);
     if (existingValue === undefined) return false;
-    this.deepSet(this.cache!, key, updater(existingValue));
+    this.deepSet(data, key, updater(existingValue));
+    if (this.cache) this.cache = data;
     await this.writeFile();
     return true;
   }
 
   async toggle(key: string) {
-    if (!this.cache) await this.refreshCache();
-    const currentValue = this.deepGet(this.cache!, key, undefined);
+    const data = this.cache ?? (await this.readFile());
+    const currentValue = this.deepGet(data, key, undefined);
     if (typeof currentValue !== "boolean") {
       throw new Error("Toggle only works on boolean values.");
     }
-    this.deepSet(this.cache!, key, !currentValue);
+    this.deepSet(data, key, !currentValue);
+    if (this.cache) this.cache = data;
     await this.writeFile();
   }
 
   async delete(key: string): Promise<boolean> {
-    if (!this.cache) await this.refreshCache();
+    const data = this.cache ?? (await this.readFile());
     const keys = key.split(".");
-    let obj: any = this.cache!;
+    let obj: any = data;
     for (let i = 0; i < keys.length - 1; i++) {
       if (!(keys[i] in obj)) return false;
       obj = obj[keys[i]];
     }
     if (!(keys[keys.length - 1] in obj)) return false;
     delete obj[keys[keys.length - 1]];
+    if (this.cache) this.cache = data;
     await this.writeFile();
     return true;
   }
 
   async keys(): Promise<string[]> {
-    if (!this.cache) await this.refreshCache();
-    return Object.keys(this.cache!);
+    if (this.cache) return Object.keys(this.cache);
+    const data = await this.readFile();
+    return Object.keys(data);
   }
 
   async values(): Promise<any[]> {
-    if (!this.cache) await this.refreshCache();
-    return Object.values(this.cache!);
+    if (this.cache) return Object.values(this.cache);
+    const data = await this.readFile();
+    return Object.values(data);
   }
 
   async merge(key: string, newData: object) {
-    if (!this.cache) await this.refreshCache();
-    const existingValue = this.deepGet(this.cache!, key, {});
+    const data = this.cache ?? (await this.readFile());
+    const existingValue = this.deepGet(data, key, {});
     if (typeof existingValue !== "object") {
       throw new Error("Merge target must be an object.");
     }
-    this.deepSet(this.cache!, key, { ...existingValue, ...newData });
+    this.deepSet(data, key, { ...existingValue, ...newData });
+    if (this.cache) this.cache = data;
     await this.writeFile();
   }
-  
+
   async plus(key: string, amount: number = 1) {
-    if (!this.cache) await this.refreshCache();
-    let existingValue = this.deepGet(this.cache!, key, 0);
+    const data = this.cache ?? (await this.readFile());
+    let existingValue = this.deepGet(data, key, 0);
 
     if (typeof existingValue !== "number") {
-        throw new Error(`Cannot perform addition on non-numeric value at key "${key}".`);
+      throw new Error(`Cannot perform addition on non-numeric value at key "${key}".`);
     }
 
-    this.deepSet(this.cache!, key, existingValue + amount);
+    this.deepSet(data, key, existingValue + amount);
+    if (this.cache) this.cache = data;
     await this.writeFile();
-}
+  }
 
-async minus(key: string, amount: number = 1) {
+  async minus(key: string, amount: number = 1) {
     await this.plus(key, -amount);
-}
+  }
 
-async multiple(key: string, factor: number = 1) {
-    if (!this.cache) await this.refreshCache();
-    let existingValue = this.deepGet(this.cache!, key, 1);
+  async multiple(key: string, factor: number = 1) {
+    const data = this.cache ?? (await this.readFile());
+    let existingValue = this.deepGet(data, key, 1);
 
     if (typeof existingValue !== "number") {
-        throw new Error(`Cannot perform multiplication on non-numeric value at key "${key}".`);
+      throw new Error(`Cannot perform multiplication on non-numeric value at key "${key}".`);
     }
 
-    this.deepSet(this.cache!, key, existingValue * factor);
+    this.deepSet(data, key, existingValue * factor);
+    if (this.cache) this.cache = data;
     await this.writeFile();
-}
+  }
 
-async divide(key: string, divisor: number = 1) {
-    if (!this.cache) await this.refreshCache();
-    let existingValue = this.deepGet(this.cache!, key, 1);
+  async divide(key: string, divisor: number = 1) {
+    const data = this.cache ?? (await this.readFile());
+    let existingValue = this.deepGet(data, key, 1);
 
     if (typeof existingValue !== "number") {
-        throw new Error(`Cannot perform division on non-numeric value at key "${key}".`);
+      throw new Error(`Cannot perform division on non-numeric value at key "${key}".`);
     }
 
     if (divisor === 0) {
-        throw new Error("Division by zero is not allowed.");
+      throw new Error("Division by zero is not allowed.");
     }
 
-    this.deepSet(this.cache!, key, existingValue / divisor);
+    this.deepSet(data, key, existingValue / divisor);
+    if (this.cache) this.cache = data;
     await this.writeFile();
-}
+  }
 }
 
 export default Storage;
