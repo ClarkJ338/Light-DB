@@ -8,11 +8,13 @@ class Storage {
   private cache: Record<string, any> | null = null;
   private batchTimer: NodeJS.Timeout | null = null;
   private isBatching = false;
+  private cacheLimit: number;
 
-  constructor(dirPath: string, dbName: string) {
+  constructor(dirPath: string, dbName: string, cacheLimit: number = 2 * 1024 * 1024) {
     this.dbName = dbName;
     this.dir = path.resolve(dirPath);
     this.file = path.join(this.dir, `${dbName}.json`);
+    this.cacheLimit = cacheLimit;
     this.init();
   }
 
@@ -29,7 +31,7 @@ class Storage {
   private async refreshCache() {
     const data = await this.readFile();
     const size = Buffer.byteLength(JSON.stringify(data), "utf-8");
-    if (size <= 2 * 1024 * 1024) {
+    if (this.cacheLimit > 0 && size <= this.cacheLimit) {
       this.cache = data; // cache in memory
     } else {
       this.cache = null; // too big, use disk mode
@@ -55,6 +57,12 @@ class Storage {
       await fs.writeFile(this.file, JSON.stringify(data, null, 2), "utf-8");
       this.isBatching = false;
     }, 1000);
+  }
+
+  /** Immediately flush cache/disk data to disk (skips batching) */
+  async saveNow() {
+    const data = this.cache ?? (await this.readFile());
+    await fs.writeFile(this.file, JSON.stringify(data, null, 2), "utf-8");
   }
 
   private deepGet(obj: Record<string, any>, path: string, defaultValue: any) {
@@ -177,11 +185,9 @@ class Storage {
   async plus(key: string, amount: number = 1) {
     const data = this.cache ?? (await this.readFile());
     let existingValue = this.deepGet(data, key, 0);
-
     if (typeof existingValue !== "number") {
       throw new Error(`Cannot perform addition on non-numeric value at key "${key}".`);
     }
-
     this.deepSet(data, key, existingValue + amount);
     if (this.cache) this.cache = data;
     await this.writeFile();
@@ -194,11 +200,9 @@ class Storage {
   async multiple(key: string, factor: number = 1) {
     const data = this.cache ?? (await this.readFile());
     let existingValue = this.deepGet(data, key, 1);
-
     if (typeof existingValue !== "number") {
       throw new Error(`Cannot perform multiplication on non-numeric value at key "${key}".`);
     }
-
     this.deepSet(data, key, existingValue * factor);
     if (this.cache) this.cache = data;
     await this.writeFile();
@@ -207,19 +211,73 @@ class Storage {
   async divide(key: string, divisor: number = 1) {
     const data = this.cache ?? (await this.readFile());
     let existingValue = this.deepGet(data, key, 1);
-
     if (typeof existingValue !== "number") {
       throw new Error(`Cannot perform division on non-numeric value at key "${key}".`);
     }
-
-    if (divisor === 0) {
-      throw new Error("Division by zero is not allowed.");
-    }
-
+    if (divisor === 0) throw new Error("Division by zero is not allowed.");
     this.deepSet(data, key, existingValue / divisor);
     if (this.cache) this.cache = data;
     await this.writeFile();
   }
+
+  // --- Array helpers ---
+  async append(key: string, array: any[]) {
+    const data = this.cache ?? (await this.readFile());
+    let existing = this.deepGet(data, key, []);
+    if (!Array.isArray(existing)) throw new Error("Target is not an array.");
+    existing.push(...array);
+    this.deepSet(data, key, existing);
+    if (this.cache) this.cache = data;
+    await this.writeFile();
+  }
+
+  async unique(key: string) {
+    const data = this.cache ?? (await this.readFile());
+    let existing = this.deepGet(data, key, []);
+    if (!Array.isArray(existing)) throw new Error("Target is not an array.");
+    this.deepSet(data, key, [...new Set(existing)]);
+    if (this.cache) this.cache = data;
+    await this.writeFile();
+  }
+
+  async sort(key: string, compareFn?: (a: any, b: any) => number) {
+    const data = this.cache ?? (await this.readFile());
+    let existing = this.deepGet(data, key, []);
+    if (!Array.isArray(existing)) throw new Error("Target is not an array.");
+    this.deepSet(data, key, existing.sort(compareFn));
+    if (this.cache) this.cache = data;
+    await this.writeFile();
+  }
+
+  async reverse(key: string) {
+    const data = this.cache ?? (await this.readFile());
+    let existing = this.deepGet(data, key, []);
+    if (!Array.isArray(existing)) throw new Error("Target is not an array.");
+    this.deepSet(data, key, existing.reverse());
+    if (this.cache) this.cache = data;
+    await this.writeFile();
+  }
+
+  async find(key: string, fn: (item: any) => boolean) {
+    const data = this.cache ?? (await this.readFile());
+    let existing = this.deepGet(data, key, []);
+    if (!Array.isArray(existing)) throw new Error("Target is not an array.");
+    return existing.find(fn);
+  }
+
+  async filter(key: string, fn: (item: any) => boolean) {
+    const data = this.cache ?? (await this.readFile());
+    let existing = this.deepGet(data, key, []);
+    if (!Array.isArray(existing)) throw new Error("Target is not an array.");
+    return existing.filter(fn);
+  }
+
+  async slice(key: string, start: number, end?: number) {
+    const data = this.cache ?? (await this.readFile());
+    let existing = this.deepGet(data, key, []);
+    if (!Array.isArray(existing)) throw new Error("Target is not an array.");
+    return existing.slice(start, end);
+  }
 }
 
-export default Storage;
+export default Storage;                                                       
