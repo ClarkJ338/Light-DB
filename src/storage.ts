@@ -78,9 +78,15 @@ class Storage {
 
   /** Enable in-memory cache (optionally with new size limit) */
   public async enableCache(limit?: number) {
-    if (limit !== undefined) this.cacheLimit = limit;
+    if (limit !== undefined) {
+      this.cacheLimit = limit;
+    } else if (this.cacheLimit === 0) {
+      // restore default if disabled
+      this.cacheLimit = 2 * 1024 * 1024;
+    }
     await this.refreshCache();
   }
+  
 
   /** Disable in-memory cache completely */
   public disableCache() {
