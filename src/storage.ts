@@ -278,6 +278,18 @@ class Storage {
     if (!Array.isArray(existing)) throw new Error("Target is not an array.");
     return existing.slice(start, end);
   }
+
+    /** Enable in-memory cache (optionally with new size limit) */
+  public async enableCache(limit?: number) {
+    if (limit !== undefined) this.cacheLimit = limit;
+    await this.refreshCache();
+  }
+
+  /** Disable in-memory cache completely */
+  public disableCache() {
+    this.cache = null;
+    this.cacheLimit = 0;
+  }
 }
 
 export default Storage;                                                       
