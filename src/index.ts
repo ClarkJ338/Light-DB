@@ -3,12 +3,11 @@ import Storage from "./storage";
 interface LightDBOptions {
   pretty?: boolean;
   backup?: boolean;
-  lockTimeout?: number;
 }
 
 export default function lightdb(
-  dbName: string, 
-  dirPath: string = "db", 
+  dbName: string,
+  dirPath: string = "db",
   options: LightDBOptions = {}
 ): Storage {
   return new Storage(dirPath, dbName, options);
