@@ -1,14 +1,19 @@
 import Storage from "./storage";
 
-interface DBOptions {
-  /** Maximum cache size in bytes (default: 2MB). */
-  cacheLimit?: number;
+interface LightDBOptions {
+  pretty?: boolean;
+  backup?: boolean;
+  lockTimeout?: number;
 }
 
-export function createDB(dir: string, dbName: string, options: DBOptions = {}) {
-  const cacheLimit = options.cacheLimit ?? 2 * 1024 * 1024; // 2MB default
-  return new Storage(dir, dbName, cacheLimit);
+export default function lightdb(
+  dbName: string, 
+  dirPath: string = "db", 
+  options: LightDBOptions = {}
+): Storage {
+  return new Storage(dirPath, dbName, options);
 }
-export default createDB;
 
-export type { DBOptions };
+// Export types for TypeScript users
+export type { LightDBOptions };
+export { Storage };
