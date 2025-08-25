@@ -73,16 +73,42 @@ class Storage {
     }
   }
 
-  private async writeFile(data: Record<string, any>): Promise<void> {
-    // Create backup if enabled
-    if (this.options.backup) {
-      try {
-        const currentData = await fs.readFile(this.file, "utf-8");
-        await fs.writeFile(this.backupFile, currentData, "utf-8");
-      } catch {
-        // Ignore backup creation errors
+  private async performDailyBackup(): Promise<void> {
+    if (!this.options.backup) {
+      return; // Do nothing if backups are not enabled
+    }
+
+    try {
+      const backupStats = await fs.stat(this.backupFile);
+      const now = new Date();
+      // Calculate the difference in hours
+      const hoursSinceLastBackup = (now.getTime() - backupStats.mtime.getTime()) / (1000 * 60 * 60);
+
+      // If the last backup is less than 24 hours old, do nothing
+      if (hoursSinceLastBackup < 24) {
+        return;
+      }
+    } catch (error: any) {
+      // If the file doesn't exist (code ENOENT), we'll proceed to backup.
+      // We can ignore other errors for this check.
+      if (error.code !== 'ENOENT') {
+        console.warn('Could not stat backup file:', error);
       }
     }
+
+    // If we reach here, it's time to create a new backup.
+    try {
+      await fs.copyFile(this.file, this.backupFile);
+    } catch (error) {
+      // Ignore errors if the source file doesn't exist yet,
+      // or other issues during the copy.
+      console.warn('Could not create daily backup:', error);
+    }
+  }
+
+  private async writeFile(data: Record<string, any>): Promise<void> {
+    // Perform the daily backup check before writing the new data
+    await this.performDailyBackup();
 
     const jsonString = this.options.pretty
       ? JSON.stringify(data, null, 2)
