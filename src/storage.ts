@@ -31,7 +31,7 @@ class Storage {
     this.options = {
       pretty: true,
       backup: false,
-      lockTimeout: 5000,
+      lockTimeout: 1000,
       ...options
     };
     this.init();
